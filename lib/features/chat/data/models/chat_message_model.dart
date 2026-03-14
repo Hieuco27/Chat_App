@@ -8,30 +8,45 @@ class ChatMessageModel extends ChatMessageEntity {
     required super.content,
     required super.createAt,
     required super.roomId,
+    required super.type,
     required super.isRead,
+    super.status = MessageStatus.sent,
   });
 
-
-  // Chuyển từ JSON (Socket) sang Model
+  // Chuyển từ JSON sang Model
   factory ChatMessageModel.fromJson(Map<String, dynamic> json) {
     return ChatMessageModel(
       id: json['id'] ?? '',
       senderId: json['senderId'] ?? '',
       content: json['content'] ?? '',
-      createAt: json['createAt'] != null
-          ? DateTime.parse(json['createAt'])
-          : DateTime.now(),
+      type: MessageType.values.firstWhere(
+        (e) => e.name == json['type'],
+        orElse: () => MessageType.text,
+      ),
+      status: MessageStatus.values.firstWhere(
+        (e) => e.name == json['status'],
+        orElse: () => MessageStatus.sent,
+      ),
+      createAt: _parseDateTime(json['createAt']),
       roomId: json['roomId'] ?? '',
       isRead: json['isRead'] ?? false,
     );
   }
 
-  // Chuyển từ Model sang JSON (Gửi qua Socket/Firestore)
+  static DateTime _parseDateTime(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    return DateTime.now();
+  }
+
+  // Chuyển từ Model sang JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'senderId': senderId,
       'content': content,
+      'type': type.name,
+      'status': status.name,
       'createAt': createAt.toIso8601String(),
       'roomId': roomId,
       'isRead': isRead,
@@ -46,6 +61,14 @@ class ChatMessageModel extends ChatMessageEntity {
       senderId: data['senderId'] ?? '',
       roomId: data['roomId'] ?? '',
       content: data['content'] ?? '',
+      type: MessageType.values.firstWhere(
+        (e) => e.name == data['type'],
+        orElse: () => MessageType.text,
+      ),
+      status: MessageStatus.values.firstWhere(
+        (e) => e.name == data['status'],
+        orElse: () => MessageStatus.sent,
+      ),
       createAt: (data['createAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isRead: data['isRead'] ?? false,
     );

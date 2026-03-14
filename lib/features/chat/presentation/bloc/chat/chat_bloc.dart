@@ -17,6 +17,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       ) {
     on<ChatStart>(_onChatStart);
     on<ChatSendMessage>(_onMessageSent);
+    on<ChatSendMediaMessage>(_onMediaMessageSent);
     on<ChatReceiveMessage>(_onMessageReceived);
   }
 
@@ -53,6 +54,40 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final updatedMessages = List<ChatMessageEntity>.from(state.messages)
       ..add(event.message);
     emit(state.copyWith(messages: updatedMessages));
+  }
+
+  Future<void> _onMediaMessageSent(
+    ChatSendMediaMessage event,
+    Emitter<ChatState> emit,
+  ) async {
+    try {
+      // 1. Upload to Firebase Storage
+      final downloadUrl = await _chatRepository.uploadFile(
+        event.file,
+        event.pathFolder,
+      );
+
+      // 2. Modify message with download URL
+      final finalMessage = ChatMessageEntity(
+        id: event.message.id,
+        roomId: event.message.roomId,
+        senderId: event.message.senderId,
+        content: downloadUrl,
+        createAt: event.message.createAt,
+        type: event.message.type,
+        isRead: false,
+      );
+
+      // 3. Send message using repository
+      _chatRepository.sendMessage(finalMessage);
+
+      // 4. Update UI immediately
+      final updatedMessages = List<ChatMessageEntity>.from(state.messages)
+        ..add(finalMessage);
+      emit(state.copyWith(messages: updatedMessages));
+    } catch (e) {
+      emit(state.copyWith(errorMessage: e.toString()));
+    }
   }
 
   void _onMessageReceived(ChatReceiveMessage event, Emitter<ChatState> emit) {

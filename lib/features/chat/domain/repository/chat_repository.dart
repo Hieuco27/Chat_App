@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:chat_app/features/chat/domain/entities/chat_message.dart';
 import 'package:chat_app/features/chat/domain/entities/chat_room.dart';
 import 'package:chat_app/features/chat/domain/entities/chat_user.dart';
@@ -26,4 +27,7 @@ abstract class ChatRepository {
 
   //tim kiếm user
   Future<List<ChatUserEntity>> searchUsers(String query);
+
+  // Upload file
+  Future<String> uploadFile(File file, String folder);
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:chat_app/features/chat/data/datasource/chat_remote_datasource.dart';
 import 'package:chat_app/features/chat/data/datasource/chat_socket_datasource.dart';
@@ -114,6 +115,8 @@ class ChatRepositoryImpl implements ChatRepository {
       senderId: message.senderId,
       content: message.content,
       createAt: message.createAt,
+      type: message.type,
+      status: message.status,
       roomId: message.roomId,
       isRead: message.isRead,
     );
@@ -124,6 +127,8 @@ class ChatRepositoryImpl implements ChatRepository {
       message.roomId,
       message.senderId,
       message.content,
+      message.type.name,
+      message.status.name,
     );
   }
 
@@ -151,6 +156,15 @@ class ChatRepositoryImpl implements ChatRepository {
     return snapshot.docs.map((doc) {
       return ChatUserModel.fromFirestore(doc);
     }).toList();
+  }
+
+  // ========================
+  // FILE STORAGE
+  // ========================
+
+  @override
+  Future<String> uploadFile(File file, String folder) async {
+    return await _remoteDatasource.uploadFile(file, folder);
   }
 
   // ========================

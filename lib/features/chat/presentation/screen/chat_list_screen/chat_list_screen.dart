@@ -1,3 +1,4 @@
+import 'package:chat_app/features/chat/presentation/screen/chat_screen/chat_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:chat_app/features/auth/presentation/bloc/auth_bloc.dart';
@@ -6,7 +7,9 @@ import '../../bloc/chat/chat_bloc.dart';
 import '../../bloc/chat_list/chat_list_bloc.dart';
 import '../../bloc/chat_list/chat_list_event.dart';
 import '../../bloc/chat_list/chat_list_state.dart';
-import '../chat_screen/chat_screen.dart';
+import '../../bloc/search_user/search_user_bloc.dart';
+import '../search_user_screen/search_user_screen.dart';
+import 'package:chat_app/features/chat/domain/repository/chat_repository.dart';
 
 class ChatListScreen extends StatefulWidget {
   const ChatListScreen({super.key});
@@ -15,12 +18,13 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
-  // Chỉ cần biết user hiện tại là ai
-  final String currentUserId = "User_A"; // TODO: Firebase Auth
+  late String currentUserId;
 
   @override
   void initState() {
     super.initState();
+    // Lấy userId từ AuthBloc
+    currentUserId = context.read<AuthBloc>().state.user?.uid ?? '';
     // Dispatch event load rooms
     context.read<ChatListBloc>().add(ChatListStarted(userId: currentUserId));
   }
@@ -48,7 +52,6 @@ class _ChatListScreenState extends State<ChatListScreen> {
           if (state is ChatListLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-
           // Error
           if (state is ChatListError) {
             return Center(child: Text(state.errorMessage));
@@ -67,18 +70,22 @@ class _ChatListScreenState extends State<ChatListScreen> {
               itemBuilder: (context, index) {
                 final room = rooms[index];
 
-                // Lấy thông tin người chat đối diện
+                // Lấy thông tin người chat đối diện (filter bỏ ID của tôi)
                 final otherUserId = room.participants.firstWhere(
                   (id) => id != currentUserId,
+                  orElse: () => room.participants.first,
                 );
+
                 final otherUser = room.userProfiles[otherUserId];
 
                 return ListTile(
                   // Avatar
                   leading: CircleAvatar(
-                    backgroundImage: NetworkImage(
-                      otherUser?.photoUrl ?? 'https://via.placeholder.com/150',
-                    ),
+                    backgroundImage:
+                        (otherUser?.photoUrl != null &&
+                            otherUser!.photoUrl.isNotEmpty)
+                        ? NetworkImage(otherUser.photoUrl)
+                        : const NetworkImage('https://via.placeholder.com/150'),
                   ),
                   // Tên
                   title: Text(
@@ -108,6 +115,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           child: ChatScreen(
                             userId: currentUserId,
                             roomId: room.id,
+                            otherUser: otherUser,
                           ),
                         ),
                       ),
@@ -120,6 +128,23 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
           return const SizedBox(); // Trạng thái initial
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Mở màn hình tìm kiếm người dùng mới
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (innerContext) => BlocProvider(
+                create: (context) => SearchUserBloc(
+                  chatRepository: context.read<ChatRepository>(),
+                ),
+                child: const SearchUserScreen(),
+              ),
+            ),
+          );
+        },
+        child: const Icon(Icons.add_comment),
       ),
     );
   }

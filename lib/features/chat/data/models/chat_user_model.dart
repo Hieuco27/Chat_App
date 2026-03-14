@@ -14,13 +14,13 @@ class ChatUserModel extends ChatUserEntity {
 
   factory ChatUserModel.fromJson(Map<String, dynamic> json) {
     return ChatUserModel(
-      uid: json['uid'],
-      displayName: json['displayName'],
-      photoUrl: json['photoUrl'],
-      email: json['email'],
-      isOnline: json['isOnline'],
-      createAt: DateTime.parse(json['createAt']),
-      lastSeen: DateTime.parse(json['lastSeen']),
+      uid: json['uid'] ?? '',
+      displayName: json['displayName'] ?? '',
+      photoUrl: json['photoUrl'] ?? '',
+      email: json['email'] ?? '',
+      isOnline: json['isOnline'] ?? false,
+      createAt: _parseDateTime(json['createAt']),
+      lastSeen: _parseDateTime(json['lastSeen']),
     );
   }
 
@@ -37,15 +37,21 @@ class ChatUserModel extends ChatUserEntity {
   }
 
   factory ChatUserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return ChatUserModel(
       uid: doc.id,
-      displayName: data['displayName'],
-      photoUrl: data['photoUrl'],
-      email: data['email'],
-      isOnline: data['isOnline'],
-      createAt: (data['createAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      lastSeen: (data['lastSeen'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      displayName: data['displayName'] ?? '',
+      photoUrl: data['photoUrl'] ?? '',
+      email: data['email'] ?? '',
+      isOnline: data['isOnline'] ?? false,
+      createAt: _parseDateTime(data['createAt']),
+      lastSeen: _parseDateTime(data['lastSeen']),
     );
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.tryParse(value) ?? DateTime.now();
+    return DateTime.now();
   }
 }
