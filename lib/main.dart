@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 // Auth
 import 'package:chat_app/features/auth/data/datasource/auth_remote_datasource.dart';
@@ -20,9 +21,24 @@ import 'package:chat_app/features/chat/presentation/screen/chat_list_screen/chat
 import 'package:chat_app/features/auth/domain/repository/auth_repository.dart';
 import 'package:chat_app/features/chat/domain/repository/chat_repository.dart';
 
+// Notification
+import 'package:chat_app/features/notification/data/datasource/notification_remote_datasource.dart';
+import 'package:chat_app/features/notification/data/repository_impl/notification_repository_impl.dart';
+import 'package:chat_app/features/notification/domain/repository/notification_repository.dart';
+import 'package:chat_app/features/notification/presentation/bloc/notification_bloc.dart';
+import 'package:chat_app/features/notification/presentation/bloc/notification_event.dart';
+
+// Đặt hàm này ở cấp ngoài cùng (Top-level)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print("Handling a background message: ${message.messageId}");
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(const MainApp());
 }
 
@@ -43,6 +59,12 @@ class MainApp extends StatelessWidget {
       remoteDatasource: remoteDatasource,
     );
 
+    // Khởi tạo Notification dependencies
+    final notificationDatasource = NotificationRemoteDatasource();
+    final notificationRepository = NotificationRepositoryImpl(
+      remoteDatasource: notificationDatasource,
+    );
+
     return ScreenUtilInit(
       designSize: const Size(375, 812),
       minTextAdapt: true,
@@ -52,6 +74,9 @@ class MainApp extends StatelessWidget {
           providers: [
             RepositoryProvider<AuthRepository>(create: (_) => authRepository),
             RepositoryProvider<ChatRepository>(create: (_) => chatRepository),
+            RepositoryProvider<NotificationRepository>(
+              create: (_) => notificationRepository,
+            ),
           ],
           child: MultiBlocProvider(
             providers: [
@@ -59,6 +84,15 @@ class MainApp extends StatelessWidget {
                 create: (context) =>
                     AuthBloc(authRepository: context.read<AuthRepository>())
                       ..add(AuthCheckRequested()),
+              ),
+              BlocProvider(
+                create: (context) =>
+                    NotificationBloc(
+                      notificationRepository: context
+                          .read<NotificationRepository>(),
+                    )..add(
+                      NotificationInitRequested(),
+                    ), // Kích hoạt sự kiện Init để gọi initialize()
               ),
             ],
             child: MaterialApp(
@@ -71,6 +105,8 @@ class MainApp extends StatelessWidget {
                 builder: (context, state) {
                   // Đã đăng nhập → ChatListScreen
                   if (state.status == AuthStatus.authenticated) {
+                    // Nếu đã đăng nhập, bạn có thể gửi sự kiện cập nhật FCM Token lên server
+                    // Thông qua: context.read<NotificationBloc>().add(NotificationSaveTokenRequested(userId: state.user!.id));
                     return BlocProvider(
                       create: (context) => ChatListBloc(
                         chatRepository: context.read<ChatRepository>(),
